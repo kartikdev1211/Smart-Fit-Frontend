@@ -20,7 +20,10 @@ class WardrobeItem {
   // Factory constructor to create WardrobeItem from JSON
   factory WardrobeItem.fromJson(Map<String, dynamic> json) {
     return WardrobeItem(
-      id: json['_id'] ?? json['id'] ?? '',
+      id:
+          json['_id'] ??
+          json['id'] ??
+          DateTime.now().millisecondsSinceEpoch.toString(),
       name: json['name'] ?? '',
       category: json['category'] ?? '',
       color: json['color'] ?? '',

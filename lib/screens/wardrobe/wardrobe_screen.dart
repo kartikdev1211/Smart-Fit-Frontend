@@ -45,95 +45,97 @@ class _WardrobeScreenState extends State<WardrobeScreen>
   @override
   Widget build(BuildContext context) {
     final size = MediaQuery.of(context).size;
-    final isTablet = size.width > 600;
-    final isLargeScreen = size.width > 900;
+    final isLargeScreen = size.width > 600;
+    final isTablet = size.width > 768;
 
-    return BlocProvider(
-      create: (context) {
-        final bloc = WardrobeBloc();
-        // Immediately fetch wardrobe items
-        bloc.add(FetchWardrobeItemsEvent());
-        return bloc;
+    return BlocConsumer<WardrobeBloc, WardrobeState>(
+      listener: (context, state) {
+        debugPrint("🔍 Wardrobe Screen - Received state: $state");
+        debugPrint("🔍 Wardrobe Screen - State type: ${state.runtimeType}");
+
+        if (state is WardrobeError) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text(state.message), backgroundColor: Colors.red),
+          );
+        } else if (state is WardrobeItemAdded) {
+          // Automatically refresh wardrobe items when a new item is added
+          debugPrint("🔍 Wardrobe Screen - Item added, refreshing items");
+          context.read<WardrobeBloc>().add(FetchWardrobeItemsEvent());
+        } else if (state is WardrobeItemsLoaded) {
+          debugPrint(
+            "🔍 Wardrobe Screen - Items loaded, count: ${state.items.length}",
+          );
+          debugPrint("🔍 Wardrobe Screen - Items: ${state.items}");
+        }
+        // Note: WardrobeItemDeleted is now handled by the BLoC automatically
       },
-      child: BlocConsumer<WardrobeBloc, WardrobeState>(
-        listener: (context, state) {
-          if (state is WardrobeError) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(
-                content: Text(state.message),
-                backgroundColor: Colors.red,
-              ),
-            );
-          } else if (state is WardrobeItemAdded) {
-            // Automatically refresh wardrobe items when a new item is added
-            context.read<WardrobeBloc>().add(FetchWardrobeItemsEvent());
-          }
-        },
-        builder: (context, state) {
-          debugPrint("🔍 Wardrobe Screen - Current State: $state");
-          debugPrint("🔍 Wardrobe Screen - State Type: ${state.runtimeType}");
-          debugPrint(
-            "🔍 Wardrobe Screen - Is WardrobeItemsLoaded: ${state is WardrobeItemsLoaded}",
-          );
-          debugPrint(
-            "🔍 Wardrobe Screen - Is WardrobeLoading: ${state is WardrobeLoading}",
-          );
+      builder: (context, state) {
+        debugPrint("🔍 Wardrobe Screen - Building with state: $state");
+        debugPrint("🔍 Wardrobe Screen - State type: ${state.runtimeType}");
+        debugPrint(
+          "🔍 Wardrobe Screen - Is WardrobeItemsLoaded: ${state is WardrobeItemsLoaded}",
+        );
+        debugPrint(
+          "🔍 Wardrobe Screen - Is WardrobeLoading: ${state is WardrobeLoading}",
+        );
 
-          return Scaffold(
-            backgroundColor: const Color(0xFFF9F9F9),
-            appBar: AppBar(
-              backgroundColor: Colors.white,
-              elevation: 1,
-              centerTitle: true,
-              title: const Text(
-                "Your Wardrobe",
-                style: TextStyle(
-                  fontWeight: FontWeight.bold,
-                  color: Color(0xFF111827),
-                ),
+        return Scaffold(
+          backgroundColor: const Color(0xFFF9F9F9),
+          appBar: AppBar(
+            backgroundColor: Colors.white,
+            elevation: 1,
+            centerTitle: true,
+            title: const Text(
+              "Your Wardrobe",
+              style: TextStyle(
+                fontWeight: FontWeight.bold,
+                color: Color(0xFF111827),
               ),
             ),
-            body: FadeTransition(
-              opacity: _fadeIn,
-              child: Padding(
-                padding: EdgeInsets.symmetric(
-                  horizontal: isLargeScreen ? size.width * 0.1 : 16,
-                  vertical: 16,
-                ),
-                child: _buildWardrobeContent(state, isTablet),
+          ),
+          body: FadeTransition(
+            opacity: _fadeIn,
+            child: Padding(
+              padding: EdgeInsets.symmetric(
+                horizontal: isLargeScreen ? size.width * 0.1 : 16,
+                vertical: 16,
               ),
+              child: _buildWardrobeContent(state, isTablet),
             ),
-            floatingActionButton: FloatingActionButton.extended(
-              onPressed: () async {
-                final result = await Navigator.push(
-                  context,
-                  CupertinoPageRoute(
-                    builder: (context) => const AddItemScreen(),
+          ),
+          floatingActionButton: FloatingActionButton.extended(
+            onPressed: () async {
+              final result = await Navigator.push(
+                context,
+                CupertinoPageRoute(
+                  builder: (context) => BlocProvider.value(
+                    value: context.read<WardrobeBloc>(),
+                    child: const AddItemScreen(),
                   ),
-                );
-
-                // Refresh wardrobe items after adding new item
-                if (result != null) {
-                  context.read<WardrobeBloc>().add(FetchWardrobeItemsEvent());
-                }
-              },
-              backgroundColor: const Color(0xFF7E57C2), // Soft violet
-              elevation: 6,
-              icon: const Icon(Icons.add, color: Colors.white),
-              label: const Text(
-                "Add Item",
-                style: TextStyle(
-                  fontWeight: FontWeight.w600,
-                  color: Colors.white,
                 ),
-              ),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(30),
+              );
+
+              // Refresh wardrobe items after adding new item
+              if (result != null) {
+                context.read<WardrobeBloc>().add(FetchWardrobeItemsEvent());
+              }
+            },
+            backgroundColor: const Color(0xFF7E57C2), // Soft violet
+            elevation: 6,
+            icon: const Icon(Icons.add, color: Colors.white),
+            label: const Text(
+              "Add Item",
+              style: TextStyle(
+                fontWeight: FontWeight.w600,
+                color: Colors.white,
               ),
             ),
-          );
-        },
-      ),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(30),
+            ),
+          ),
+        );
+      },
     );
   }
 
@@ -151,7 +153,12 @@ class _WardrobeScreenState extends State<WardrobeScreen>
         "🔍 _buildWardrobeContent - Items Count: ${state.items.length}",
       );
       debugPrint("🔍 _buildWardrobeContent - Items: ${state.items}");
+      debugPrint(
+        "🔍 _buildWardrobeContent - Items isEmpty: ${state.items.isEmpty}",
+      );
+
       if (state.items.isEmpty) {
+        debugPrint("🔍 _buildWardrobeContent - Showing empty state");
         return const Center(
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,

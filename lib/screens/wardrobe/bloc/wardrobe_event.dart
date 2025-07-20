@@ -1,10 +1,12 @@
+import 'dart:io';
+
 abstract class WardrobeEvent {}
 
 class AddWardrobeItemEvent extends WardrobeEvent {
   final String name;
   final String category;
   final String color;
-  final String imageUrl;
+  final File imageFile; // Changed from String imageUrl to File imageFile
   final List<String> weatherTags;
   final String? occasion;
 
@@ -12,7 +14,7 @@ class AddWardrobeItemEvent extends WardrobeEvent {
     required this.name,
     required this.category,
     required this.color,
-    required this.imageUrl,
+    required this.imageFile, // Updated parameter
     required this.weatherTags,
     this.occasion,
   });
@@ -26,6 +28,7 @@ class UpdateWardrobeItemEvent extends WardrobeEvent {
   final String? category;
   final String? color;
   final String? imageUrl;
+  final File? imageFile; // Add support for new image file
   final List<String>? weatherTags;
   final String? occasion;
 
@@ -35,6 +38,7 @@ class UpdateWardrobeItemEvent extends WardrobeEvent {
     this.category,
     this.color,
     this.imageUrl,
+    this.imageFile, // Add new parameter
     this.weatherTags,
     this.occasion,
   });

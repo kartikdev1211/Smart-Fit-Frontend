@@ -70,17 +70,65 @@ class _AddItemScreenState extends State<AddItemScreen> {
   }
 
   Future<void> _pickImage() async {
-    final XFile? image = await _picker.pickImage(
-      source: ImageSource.gallery,
-      maxWidth: 800,
-      maxHeight: 800,
-      imageQuality: 80,
-    );
+    try {
+      final XFile? image = await _picker.pickImage(
+        source: ImageSource.gallery,
+        maxWidth: 800,
+        maxHeight: 800,
+        imageQuality: 80,
+      );
 
-    if (image != null) {
-      setState(() {
-        _selectedImage = File(image.path);
-      });
+      if (image != null) {
+        final file = File(image.path);
+
+        // Check if file exists and has content
+        if (await file.exists()) {
+          final fileSize = await file.length();
+          debugPrint("📸 Selected image: ${image.path}");
+          debugPrint(
+            "📸 File size: $fileSize bytes (${(fileSize / 1024 / 1024).toStringAsFixed(2)} MB)",
+          );
+
+          if (fileSize > 10 * 1024 * 1024) {
+            // 10MB limit
+            if (mounted) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(
+                  content: Text('Image size must be less than 10MB'),
+                  backgroundColor: Colors.red,
+                ),
+              );
+            }
+            return;
+          }
+
+          if (mounted) {
+            setState(() {
+              _selectedImage = file;
+            });
+          }
+        } else {
+          debugPrint("❌ Selected image file does not exist: ${image.path}");
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Text('Selected image file not found'),
+                backgroundColor: Colors.red,
+              ),
+            );
+          }
+        }
+      }
+    } catch (e) {
+      debugPrint("❌ Error picking image: $e");
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error selecting image: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
     }
   }
 
@@ -94,7 +142,7 @@ class _AddItemScreenState extends State<AddItemScreen> {
     });
   }
 
-  void _saveItem() {
+  void _saveItem() async {
     if (_formKey.currentState!.validate()) {
       if (_selectedImage == null) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -116,14 +164,13 @@ class _AddItemScreenState extends State<AddItemScreen> {
         return;
       }
 
-      // Add item using BLoC
+      // Add item using BLoC with image file
       context.read<WardrobeBloc>().add(
         AddWardrobeItemEvent(
           name: _nameController.text,
           category: _selectedCategory!,
           color: _colorController.text,
-          imageUrl: _selectedImage!
-              .path, // For now using local path, should be uploaded to server
+          imageFile: _selectedImage!, // Pass the file instead of path
           weatherTags: _selectedWeatherTags,
           occasion: _selectedOccasion,
         ),
@@ -133,175 +180,173 @@ class _AddItemScreenState extends State<AddItemScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return BlocProvider(
-      create: (context) => WardrobeBloc(),
-      child: BlocConsumer<WardrobeBloc, WardrobeState>(
-        listener: (context, state) {
-          if (state is WardrobeItemAdded) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(
-                content: Text('Item added successfully!'),
-                backgroundColor: Colors.green,
-              ),
-            );
-            Navigator.pop(context, state.item);
-          } else if (state is WardrobeError) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(
-                content: Text(state.message),
-                backgroundColor: Colors.red,
-              ),
-            );
-          }
-        },
-        builder: (context, state) {
-          return Scaffold(
-            backgroundColor: const Color(0xFFF9F9F9),
-            appBar: AppBar(
-              backgroundColor: Colors.white,
-              elevation: 1,
-              title: const Text(
-                'Add New Item',
-                style: TextStyle(
-                  fontWeight: FontWeight.bold,
-                  color: Color(0xFF111827),
-                ),
-              ),
-              leading: IconButton(
-                icon: const Icon(Icons.arrow_back, color: Color(0xFF111827)),
-                onPressed: () => Navigator.pop(context),
-              ),
-            ),
-            body: Stack(
-              children: [
-                SingleChildScrollView(
-                  padding: const EdgeInsets.all(20),
-                  child: Form(
-                    key: _formKey,
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        // Image Selection
-                        _buildImageSection(),
-                        const SizedBox(height: 24),
-
-                        // Name Field
-                        _buildTextField(
-                          controller: _nameController,
-                          label: 'Item Name',
-                          hint: 'e.g., Blue Denim Jacket',
-                          icon: Icons.label,
-                          validator: (value) {
-                            if (value == null || value.isEmpty) {
-                              return 'Please enter item name';
-                            }
-                            return null;
-                          },
-                        ),
-                        const SizedBox(height: 20),
-
-                        // Category Selection
-                        _buildDropdownField(
-                          label: 'Category',
-                          value: _selectedCategory,
-                          items: _categories,
-                          onChanged: (value) {
-                            setState(() {
-                              _selectedCategory = value;
-                            });
-                          },
-                          icon: Icons.category,
-                        ),
-                        const SizedBox(height: 20),
-
-                        // Color Field
-                        _buildTextField(
-                          controller: _colorController,
-                          label: 'Color',
-                          hint: 'e.g., Navy Blue, Red, Black',
-                          icon: Icons.palette,
-                          validator: (value) {
-                            if (value == null || value.isEmpty) {
-                              return 'Please enter color';
-                            }
-                            return null;
-                          },
-                        ),
-                        const SizedBox(height: 20),
-
-                        // Occasion Selection
-                        _buildDropdownField(
-                          label: 'Occasion (Optional)',
-                          value: _selectedOccasion,
-                          items: ['None', ..._occasions],
-                          onChanged: (value) {
-                            setState(() {
-                              _selectedOccasion = value == 'None'
-                                  ? null
-                                  : value;
-                            });
-                          },
-                          icon: Icons.event,
-                        ),
-                        const SizedBox(height: 20),
-
-                        // Weather Tags
-                        _buildWeatherTagsSection(),
-                        const SizedBox(height: 30),
-
-                        // Save Button
-                        SizedBox(
-                          width: double.infinity,
-                          height: 50,
-                          child: ElevatedButton(
-                            onPressed: state is WardrobeLoading
-                                ? null
-                                : _saveItem,
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: const Color(0xFF5A4FCF),
-                              foregroundColor: Colors.white,
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(12),
-                              ),
-                              elevation: 2,
-                            ),
-                            child: state is WardrobeLoading
-                                ? const SizedBox(
-                                    width: 20,
-                                    height: 20,
-                                    child: CircularProgressIndicator(
-                                      color: Colors.white,
-                                      strokeWidth: 2,
-                                    ),
-                                  )
-                                : const Text(
-                                    'Save Item',
-                                    style: TextStyle(
-                                      fontSize: 16,
-                                      fontWeight: FontWeight.bold,
-                                    ),
-                                  ),
-                          ),
-                        ),
-                        const SizedBox(height: 20),
-                      ],
-                    ),
-                  ),
-                ),
-                if (state is WardrobeLoading)
-                  Container(
-                    color: Colors.black.withOpacity(0.3),
-                    child: const Center(
-                      child: CircularProgressIndicator(
-                        color: Color(0xFF5A4FCF),
-                      ),
-                    ),
-                  ),
-              ],
+    return BlocConsumer<WardrobeBloc, WardrobeState>(
+      listener: (context, state) {
+        debugPrint("🔍 AddItemScreen received state: $state");
+        if (state is WardrobeItemAdded) {
+          debugPrint(
+            "✅ WardrobeItemAdded state received, showing success message",
+          );
+          debugPrint(
+            "✅ Navigating back to wardrobe screen with item: ${state.item}",
+          );
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Item added successfully!'),
+              backgroundColor: Colors.green,
             ),
           );
-        },
-      ),
+          Navigator.pop(context, state.item);
+        } else if (state is WardrobeError) {
+          debugPrint("❌ WardrobeError state received: ${state.message}");
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text(state.message), backgroundColor: Colors.red),
+          );
+        }
+      },
+      builder: (context, state) {
+        return Scaffold(
+          backgroundColor: const Color(0xFFF9F9F9),
+          appBar: AppBar(
+            backgroundColor: Colors.white,
+            elevation: 1,
+            title: const Text(
+              'Add New Item',
+              style: TextStyle(
+                fontWeight: FontWeight.bold,
+                color: Color(0xFF111827),
+              ),
+            ),
+            leading: IconButton(
+              icon: const Icon(Icons.arrow_back, color: Color(0xFF111827)),
+              onPressed: () => Navigator.pop(context),
+            ),
+          ),
+          body: Stack(
+            children: [
+              SingleChildScrollView(
+                padding: const EdgeInsets.all(20),
+                child: Form(
+                  key: _formKey,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      // Image Selection
+                      _buildImageSection(),
+                      const SizedBox(height: 24),
+
+                      // Name Field
+                      _buildTextField(
+                        controller: _nameController,
+                        label: 'Item Name',
+                        hint: 'e.g., Blue Denim Jacket',
+                        icon: Icons.label,
+                        validator: (value) {
+                          if (value == null || value.isEmpty) {
+                            return 'Please enter item name';
+                          }
+                          return null;
+                        },
+                      ),
+                      const SizedBox(height: 20),
+
+                      // Category Selection
+                      _buildDropdownField(
+                        label: 'Category',
+                        value: _selectedCategory,
+                        items: _categories,
+                        onChanged: (value) {
+                          setState(() {
+                            _selectedCategory = value;
+                          });
+                        },
+                        icon: Icons.category,
+                      ),
+                      const SizedBox(height: 20),
+
+                      // Color Field
+                      _buildTextField(
+                        controller: _colorController,
+                        label: 'Color',
+                        hint: 'e.g., Navy Blue, Red, Black',
+                        icon: Icons.palette,
+                        validator: (value) {
+                          if (value == null || value.isEmpty) {
+                            return 'Please enter color';
+                          }
+                          return null;
+                        },
+                      ),
+                      const SizedBox(height: 20),
+
+                      // Occasion Selection
+                      _buildDropdownField(
+                        label: 'Occasion (Optional)',
+                        value: _selectedOccasion,
+                        items: ['None', ..._occasions],
+                        onChanged: (value) {
+                          setState(() {
+                            _selectedOccasion = value == 'None' ? null : value;
+                          });
+                        },
+                        icon: Icons.event,
+                      ),
+                      const SizedBox(height: 20),
+
+                      // Weather Tags
+                      _buildWeatherTagsSection(),
+                      const SizedBox(height: 30),
+
+                      // Save Button
+                      SizedBox(
+                        width: double.infinity,
+                        height: 50,
+                        child: ElevatedButton(
+                          onPressed: state is WardrobeLoading
+                              ? null
+                              : _saveItem,
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: const Color(0xFF5A4FCF),
+                            foregroundColor: Colors.white,
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            elevation: 2,
+                          ),
+                          child: state is WardrobeLoading
+                              ? const SizedBox(
+                                  width: 20,
+                                  height: 20,
+                                  child: CircularProgressIndicator(
+                                    color: Colors.white,
+                                    strokeWidth: 2,
+                                  ),
+                                )
+                              : const Text(
+                                  'Save Item',
+                                  style: TextStyle(
+                                    fontSize: 16,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                        ),
+                      ),
+                      const SizedBox(height: 20),
+                    ],
+                  ),
+                ),
+              ),
+              if (state is WardrobeLoading)
+                Container(
+                  color: Colors.black.withOpacity(0.3),
+                  child: const Center(
+                    child: CircularProgressIndicator(color: Color(0xFF5A4FCF)),
+                  ),
+                ),
+            ],
+          ),
+        );
+      },
     );
   }
 

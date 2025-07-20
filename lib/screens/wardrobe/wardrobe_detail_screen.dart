@@ -227,6 +227,9 @@ class _WardrobeDetailScreenState extends State<WardrobeDetailScreen> {
             ),
           );
         } else if (state is WardrobeItemDeleted) {
+          debugPrint(
+            "🔍 Detail Screen - Item deleted successfully: ${state.message}",
+          );
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
               content: Text(state.message),
@@ -234,6 +237,7 @@ class _WardrobeDetailScreenState extends State<WardrobeDetailScreen> {
             ),
           );
           // Navigate back to wardrobe screen with result to trigger refresh
+          debugPrint("🔍 Detail Screen - Navigating back to wardrobe screen");
           Navigator.pop(context, true);
         } else if (state is WardrobeError) {
           debugPrint("Error in WardrobeDetailScreen: ${state.message}");
