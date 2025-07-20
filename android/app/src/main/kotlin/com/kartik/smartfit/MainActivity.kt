@@ -1,4 +1,4 @@
-package com.example.smart_fit
+package com.kartik.smartfit
 
 import io.flutter.embedding.android.FlutterActivity
 
