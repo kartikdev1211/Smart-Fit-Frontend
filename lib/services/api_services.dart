@@ -422,7 +422,7 @@ class ApiServices {
       // Get file size
       final fileSize = await imageFile.length();
       debugPrint(
-        "📏 File size: ${fileSize} bytes (${(fileSize / 1024 / 1024).toStringAsFixed(2)} MB)",
+        "📏 File size: $fileSize bytes (${(fileSize / 1024 / 1024).toStringAsFixed(2)} MB)",
       );
 
       // Get stored token
