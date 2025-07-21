@@ -122,11 +122,19 @@ class _AuthScreenState extends State<AuthScreen>
                   ],
                 ),
                 child: BlocListener<AuthBloc, AuthState>(
-                  listener: (context, state) {
+                  listener: (context, state) async {
                     if (state is AuthLoadingState) {
-                      // Optional: Show a loading indicator in the UI if needed
+                      // Show loading dialog
+                      showDialog(
+                        context: context,
+                        barrierDismissible: false,
+                        builder: (context) =>
+                            const Center(child: CircularProgressIndicator()),
+                      );
                       debugPrint("⏳ Auth in progress...");
                     } else if (state is AuthSuccessState) {
+                      // Dismiss loading dialog if open
+                      Navigator.of(context, rootNavigator: true).pop();
                       Fluttertoast.showToast(
                         msg: isLogin ? "Login Success!" : "Signup Success!",
                         backgroundColor: Colors.green[600],
@@ -149,7 +157,9 @@ class _AuthScreenState extends State<AuthScreen>
                         });
                       }
                     } else if (state is AuthFailureState) {
-                      debugPrint("❌ Auth Error: ${state.error}");
+                      // Dismiss loading dialog if open
+                      Navigator.of(context, rootNavigator: true).pop();
+                      debugPrint("❌ Auth Error:  [31m");
                       Fluttertoast.showToast(
                         msg: state.error,
                         backgroundColor: Colors.red,
